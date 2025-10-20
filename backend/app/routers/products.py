@@ -1,69 +1,53 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+# -*- coding: utf-8 -*-
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
-from app.models.product import Product
-from app.schemas import ProductCreate, ProductResponse
+from app.database import get_db
+from app.models.product import Product, VatRateEnum
+from app.models.user import User, RoleEnum
+from app.core.security import get_current_user, rep_required
+from pydantic import BaseModel
 
-# ✅ Router tanımı burada olmalı (en üstte)
 router = APIRouter(prefix="/products", tags=["Products"])
 
-# ✅ DB bağlantı fonksiyonu
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# ------------------- Schemas -------------------
 
-# ✅ Ürün listeleme
+class ProductCreate(BaseModel):
+    name: str
+    barcode: str | None = None
+    price: float
+    vat_rate: VatRateEnum = VatRateEnum.standard  # 💡 Enum yapısına göre
+
+# ------------------- Routes -------------------
+
 @router.get("/")
 def list_products(db: Session = Depends(get_db)):
-    products = db.query(Product).all()
-    return products
+    """Tüm ürünleri listeler"""
+    return db.query(Product).all()
 
-# ✅ Ürün ekleme
-@router.post("/", response_model=ProductResponse)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    existing = db.query(Product).filter(Product.barcode == product.barcode).first()
+@router.post("/", dependencies=[Depends(rep_required)])
+def create_product(product_data: ProductCreate, db: Session = Depends(get_db)):
+    """Yeni ürün ekler — sadece admin veya temsilci erişebilir"""
+    existing = db.query(Product).filter(Product.name == product_data.name).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu barkod zaten kayıtlı.")
+        raise HTTPException(status_code=400, detail="Bu ürün zaten mevcut.")
     
-    new_product = Product(
-        barcode=product.barcode,
-        name=product.name,
-        unit=product.unit,
-        price=product.price,
-        vat=product.vat
+    product = Product(
+        name=product_data.name,
+        barcode=product_data.barcode,
+        unit_price=product_data.price,   # 💡 Modelde sütun adı 'unit_price'
+        vat_rate=product_data.vat_rate
     )
-    db.add(new_product)
-    db.commit()
-    db.refresh(new_product)
-    return new_product
-# ✅ Ürün Güncelleme
-@router.put("/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, updated: ProductCreate, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı.")
-
-    product.barcode = updated.barcode
-    product.name = updated.name
-    product.unit = updated.unit
-    product.price = updated.price
-    product.vat = updated.vat
-
+    db.add(product)
     db.commit()
     db.refresh(product)
     return product
 
-
-# ✅ Ürün Silme
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", dependencies=[Depends(rep_required)])
 def delete_product(product_id: int, db: Session = Depends(get_db)):
+    """Ürün siler — sadece admin veya temsilci erişebilir"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Ürün bulunamadı.")
-    
     db.delete(product)
     db.commit()
-    return {"message": f"{product.name} başarıyla silindi."}
+    return {"message": "Ürün silindi."}

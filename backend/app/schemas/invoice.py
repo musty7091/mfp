@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -7,6 +8,7 @@ class InvoiceItemCreate(BaseModel):
     product_id: int
     quantity: float
     discount_rate: float = 0.0
+    vat_rate: float = 20.0  # 🔹 Varsayılan KDV oranı eklendi (zorunlu alan)
 
 
 class InvoiceCreate(BaseModel):
