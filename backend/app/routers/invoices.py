@@ -16,7 +16,6 @@ from app.core.security import get_current_user, rep_required
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
-
 # --------------------- Yardımcı Fonksiyonlar ---------------------
 
 def tl_format(x):
@@ -25,7 +24,6 @@ def tl_format(x):
     except Exception:
         return "₺0,00"
 
-
 def get_logo_path():
     """Logo yolunu sistemden otomatik olarak çeker"""
     static_path = os.path.join("app", "static", "ertan.png")
@@ -33,15 +31,10 @@ def get_logo_path():
         return f"file:///{os.path.abspath(static_path).replace(os.sep, '/')}"
     return None
 
-
 # --------------------- Fatura Oluşturma ---------------------
 
 @router.post("/create")
-def create_invoice(
-    invoice_data: InvoiceCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def create_invoice(invoice_data: InvoiceCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Yeni fatura oluşturur ve PDF olarak döner"""
     if current_user.role not in [RoleEnum.admin, RoleEnum.representative]:
         raise HTTPException(status_code=403, detail="Fatura oluşturma yetkiniz yok.")
@@ -50,18 +43,10 @@ def create_invoice(
     if not customer:
         raise HTTPException(status_code=404, detail="Müşteri bulunamadı.")
 
-    # Fatura numarası otomatik üretim
     last_invoice = db.query(Invoice).order_by(Invoice.id.desc()).first()
-    if last_invoice:
-        next_id = last_invoice.id + 1
-    else:
-        next_id = 1
-    fatura_no = f"FAT-{datetime.now().year}-{next_id:05d}"
+    fatura_no = f"FAT-{datetime.now().year}-{(last_invoice.id + 1 if last_invoice else 1):05d}"
 
-    # Hesap değişkenleri
-    subtotal = 0.0
-    total_discount = 0.0
-    total_vat = 0.0
+    subtotal = total_discount = total_vat = 0.0
     items = []
 
     for item_data in invoice_data.items[:25]:  # maksimum 25 satır
@@ -69,17 +54,21 @@ def create_invoice(
         if not product:
             continue
 
-        # Ürün fiyatı alımı (unit_price zorunlu)
         unit_price = float(product.unit_price or 0)
         quantity = float(item_data.quantity or 0)
         discount_rate = float(item_data.discount_rate or 0)
-        try:
-            vat_rate = float(product.vat_rate.value)
-        except Exception:
+
+        # ✅ Enum ya da string olarak gelebilir
+        if hasattr(product.vat_rate, "value"):
             try:
-                vat_rate = float(product.vat_rate)
-            except Exception:
-                vat_rate = 0.0
+                vat_rate = float(product.vat_rate.value)
+            except:
+                vat_rate = 20.0
+        else:
+            try:
+                vat_rate = float(product.vat_rate or 20)
+            except:
+                vat_rate = 20.0
 
         raw_total = unit_price * quantity
         discount_amount = raw_total * discount_rate / 100
@@ -95,13 +84,12 @@ def create_invoice(
             unit_price=unit_price,
             discount_rate=discount_rate,
             vat_rate=vat_rate,
-            line_total=raw_total - discount_amount + vat_amount
+            line_total=raw_total - discount_amount + vat_amount,
         )
         items.append(item)
 
     grand_total = subtotal - total_discount + total_vat
 
-    # Fatura nesnesi
     invoice = Invoice(
         date=datetime.now(),
         customer_id=customer.id,
@@ -110,7 +98,7 @@ def create_invoice(
         vat_total=total_vat,
         discount_total=total_discount,
         grand_total=grand_total,
-        items=items
+        items=items,
     )
 
     db.add(invoice)
@@ -119,31 +107,6 @@ def create_invoice(
 
     pdf_path = generate_invoice_pdf(invoice, customer, items)
     return FileResponse(pdf_path, media_type="application/pdf", filename=f"Fatura_{invoice.id}.pdf")
-
-
-# --------------------- Fatura PDF Alma ---------------------
-
-@router.get("/{invoice_id}/pdf")
-def get_invoice_pdf(
-    invoice_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Var olan faturayı PDF olarak indirir"""
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Fatura bulunamadı.")
-
-    # Eğer kullanıcı müşteri ise sadece kendi faturasını görebilmeli
-    if current_user.role == RoleEnum.customer and current_user.customer_id != invoice.customer_id:
-        raise HTTPException(status_code=403, detail="Bu faturaya erişim yetkiniz yok.")
-
-    customer = db.query(Customer).filter(Customer.id == invoice.customer_id).first()
-    items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id == invoice_id).all()
-
-    pdf_path = generate_invoice_pdf(invoice, customer, items)
-    return FileResponse(pdf_path, media_type="application/pdf", filename=f"Fatura_{invoice_id}.pdf")
-
 
 # --------------------- PDF Oluşturucu ---------------------
 
@@ -207,6 +170,7 @@ def generate_invoice_pdf(invoice, customer, items):
             }
             tr:nth-child(even) { background: #f9f9f9; }
 
+            /* Sütun genişlikleri */
             th:nth-child(1), td:nth-child(1) { width: 10%; }
             th:nth-child(2), td:nth-child(2) { width: 43%; text-align: left; padding-left: 6px; }
             th:nth-child(3), td:nth-child(3) { width: 8%; }

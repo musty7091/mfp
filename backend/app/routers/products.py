@@ -9,32 +9,25 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
-# ------------------- Schemas -------------------
-
 class ProductCreate(BaseModel):
     name: str
     barcode: str | None = None
     price: float
-    vat_rate: VatRateEnum = VatRateEnum.standard  # 💡 Enum yapısına göre
-
-# ------------------- Routes -------------------
+    vat_rate: VatRateEnum = VatRateEnum.standard
 
 @router.get("/")
 def list_products(db: Session = Depends(get_db)):
-    """Tüm ürünleri listeler"""
     return db.query(Product).all()
 
 @router.post("/", dependencies=[Depends(rep_required)])
 def create_product(product_data: ProductCreate, db: Session = Depends(get_db)):
-    """Yeni ürün ekler — sadece admin veya temsilci erişebilir"""
     existing = db.query(Product).filter(Product.name == product_data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Bu ürün zaten mevcut.")
-    
     product = Product(
         name=product_data.name,
         barcode=product_data.barcode,
-        unit_price=product_data.price,   # 💡 Modelde sütun adı 'unit_price'
+        unit_price=product_data.price,
         vat_rate=product_data.vat_rate
     )
     db.add(product)
@@ -44,7 +37,6 @@ def create_product(product_data: ProductCreate, db: Session = Depends(get_db)):
 
 @router.delete("/{product_id}", dependencies=[Depends(rep_required)])
 def delete_product(product_id: int, db: Session = Depends(get_db)):
-    """Ürün siler — sadece admin veya temsilci erişebilir"""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Ürün bulunamadı.")

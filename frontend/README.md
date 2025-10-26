@@ -1,0 +1,1 @@
+Modern Fatura Platformu Frontend v1 (Streamlit)
