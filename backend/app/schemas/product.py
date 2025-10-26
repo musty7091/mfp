@@ -1,36 +1,28 @@
 from pydantic import BaseModel
-from datetime import date, datetime
 from typing import Optional
+from datetime import date
 
-# --- Ortak Alanlar ---
 class ProductBase(BaseModel):
-    name: str
-    barcode: str
-    price: float
-    vat_rate: float
-    stock: int
-    expiry_date: Optional[date] = None
+    ad: str
+    barkod: str
+    birim_fiyat: float
+    kdv_orani: float
+    stok_miktari: int
+    skt: Optional[date] = None
 
-
-# --- Yeni Ürün ---
 class ProductCreate(ProductBase):
     pass
 
-
-# --- Ürün Güncelleme ---
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    barcode: Optional[str] = None
-    price: Optional[float] = None
-    vat_rate: Optional[float] = None
-    stock: Optional[int] = None
-    expiry_date: Optional[date] = None
+    ad: Optional[str]
+    barkod: Optional[str]
+    birim_fiyat: Optional[float]
+    kdv_orani: Optional[float]
+    stok_miktari: Optional[int]
+    skt: Optional[date]
 
-
-# --- Yanıt Modeli ---
 class ProductResponse(ProductBase):
     id: int
-    created_at: datetime
 
     class Config:
-        from_attributes = True  # Pydantic v2 için
+        from_attributes = True
