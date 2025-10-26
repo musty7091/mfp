@@ -1,26 +1,36 @@
 from pydantic import BaseModel
-from enum import Enum
+from datetime import date, datetime
 from typing import Optional
 
-class VatRateEnum(float, Enum):
-    zero = 0.0
-    low = 5.0
-    medium = 10.0
-    reduced = 16.0
-    standard = 20.0
-    special = -1.0
-
+# --- Ortak Alanlar ---
 class ProductBase(BaseModel):
     name: str
-    barcode: Optional[str] = None
-    unit_price: float
-    vat_rate: VatRateEnum = VatRateEnum.standard
+    barcode: str
+    price: float
+    vat_rate: float
+    stock: int
+    expiry_date: Optional[date] = None
 
+
+# --- Yeni Ürün ---
 class ProductCreate(ProductBase):
     pass
 
+
+# --- Ürün Güncelleme ---
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    barcode: Optional[str] = None
+    price: Optional[float] = None
+    vat_rate: Optional[float] = None
+    stock: Optional[int] = None
+    expiry_date: Optional[date] = None
+
+
+# --- Yanıt Modeli ---
 class ProductResponse(ProductBase):
     id: int
+    created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Pydantic v2 için

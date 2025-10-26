@@ -1,168 +1,82 @@
-/* =========================================================
-   Modern Fatura Platformu — Hafif Kurumsal Tema (v3)
-   Tasarım: Soft beyaz zemin + pastel mavi & yeşil vurgular
-   Optimize: input taşma, padding dengesi, tipografi uyumu
-   ========================================================= */
-
-/* --- Genel Ayarlar --- */
-html, body, [class*="css"] {
-    font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif !important;
-    background-color: #F8FAFC !important;
-    color: #1E293B !important;
-    letter-spacing: 0.1px;
+/* ======= LOGIN FORM FIX (merkez + taşma yok) ======= */
+div[data-testid="stForm"]{
+  width: 100% !important;
+  max-width: 540px !important;      /* formun tavan genişliği */
+  margin: 0 auto 24px auto !important; /* ortalama */
+  padding: 16px 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+  box-sizing: border-box !important;
 }
 
-/* Başlıklar */
-h1, h2, h3 {
-    color: #0F172A !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.3px;
+/* Sadece form içindeki giriş alanlarını kontrol et */
+div[data-testid="stForm"] input,
+div[data-testid="stForm"] textarea,
+div[data-testid="stForm"] select{
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  background-color: #F9FAFB !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  color: #1E293B !important;
 }
 
-/* Alt başlıklar */
-h4, h5, h6 {
-    color: #334155 !important;
-    font-weight: 500 !important;
+/* Odak hali – belirgin ama nazik */
+div[data-testid="stForm"] input:focus,
+div[data-testid="stForm"] textarea:focus,
+div[data-testid="stForm"] select:focus{
+  outline: none !important;
+  border-color: #3B82F6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
 }
 
-/* --- Kart Benzeri Kapsayıcılar --- */
-div[data-testid="stVerticalBlock"] {
-    background-color: #FFFFFF !important;
-    border-radius: 14px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-    padding: 1.2rem 1.4rem !important;
-    margin-bottom: 1rem !important;
+/* Giriş butonu tam genişlik ve modern görünüm */
+div[data-testid="stForm"] .stButton>button{
+  width: 100% !important;
+  background: linear-gradient(135deg,#3B82F6,#2563EB) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  font-weight: 500 !important;
+  transition: transform .15s ease, filter .15s ease;
+}
+div[data-testid="stForm"] .stButton>button:hover{
+  transform: translateY(-1px);
+  filter: brightness(0.97);
 }
 
-/* --- Giriş Alanları, Dropdown ve Textarea --- */
-input, select, textarea {
-    width: calc(100% - 8px) !important;  /* taşmayı engeller */
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    border-radius: 8px !important;
-    border: 1px solid #CBD5E1 !important;
-    padding: 0.55rem 0.75rem !important;
-    background-color: #F9FAFB !important;
-    color: #1E293B !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+/* Başlık bloğunu ortala ve nefes alan boşluk ver */
+.login-title{
+  text-align:center;
+  margin: 28px 0 12px 0;
 }
-
-input:focus, select:focus, textarea:focus {
-    outline: none !important;
-    border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+/* Ürün listesi tabloları için */
+div[data-testid="stDataFrame"] table {
+  border-radius: 10px !important;
+  border: 1px solid #E2E8F0 !important;
 }
-
-/* --- Butonlar --- */
-button[kind="primary"], div.stButton > button {
-    background: linear-gradient(135deg, #3B82F6, #2563EB) !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 500 !important;
-    padding: 0.5rem 1.2rem !important;
-    transition: all 0.2s ease-in-out;
+/* MFP Light Kurumsal Tema */
+body {
+  background-color: #f9fafb !important;
+  font-family: 'Segoe UI', sans-serif !important;
 }
-
-button[kind="primary"]:hover, div.stButton > button:hover {
-    background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
-    transform: translateY(-1px);
+button[kind="primary"], div.stButton>button {
+  background-color: #0078ff !important;
+  color: white !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
 }
-
-/* --- Bildirimler (Alert & Toast) --- */
-div.stAlert > div[data-baseweb="toast"] {
-    background-color: #ECFDF5 !important;
-    border-left: 5px solid #10B981 !important;
-    color: #065F46 !important;
-    border-radius: 8px !important;
+button[kind="primary"]:hover {
+  background-color: #005fcc !important;
 }
-
-/* --- Sidebar (Sol Menü) --- */
-section[data-testid="stSidebar"] {
-    background-color: #F1F5F9 !important;
-    border-right: 1px solid #E2E8F0 !important;
-}
-
-section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
-    padding: 1rem 0.8rem !important;
-}
-
-section[data-testid="stSidebar"] .css-1d391kg {
-    font-weight: 500 !important;
-    color: #334155 !important;
-}
-
-/* --- Scroll Bar --- */
-::-webkit-scrollbar {
-    width: 8px;
-}
-::-webkit-scrollbar-thumb {
-    background-color: rgba(100,116,139,0.3);
-    border-radius: 10px;
-}
-
-/* --- Login Sayfası Düzeni --- */
-.login-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 90vh;
-}
-
-.login-card {
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-    padding: 2rem 3rem;
-    width: 420px;
-    max-width: 90%;
-    text-align: center;
-}
-
-.login-header {
-    margin-bottom: 1rem;
-}
-
-.login-body {
-    margin-top: 1rem;
-    padding: 0 0.3rem;
-}
-
-.login-footer {
-    text-align: center;
-    font-size: 12px;
-    color: #64748B;
-    margin-top: 1rem;
-}
-
-/* --- Dashboard & Tablo Düzeni --- */
-.dataframe {
-    border-collapse: collapse !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-    font-size: 14px !important;
-}
-
-.dataframe th {
-    background-color: #F1F5F9 !important;
-    font-weight: 600 !important;
-    color: #334155 !important;
-}
-
-.dataframe td {
-    background-color: #FFFFFF !important;
-    border-bottom: 1px solid #E2E8F0 !important;
-}
-
-/* --- Metric kartları (ciro, müşteri sayısı, vb.) --- */
-div[data-testid="stMetricValue"] {
-    font-weight: 600 !important;
-    color: #1E3A8A !important;
-    font-size: 1.5rem !important;
-}
-div[data-testid="stMetricLabel"] {
-    color: #475569 !important;
-    font-size: 0.9rem !important;
+div[data-testid="stExpander"] {
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
 }

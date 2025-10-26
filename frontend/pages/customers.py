@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
-from auth import is_authenticated, get_token
+from auth import check_login_status, logout_user
 
 st.set_page_config(page_title="Müşteriler", page_icon="👥", layout="wide")
 
-if not is_authenticated():
-    st.warning("Bu sayfayı görmek için giriş yapmalısınız.")
+# Oturum kontrolü
+if not check_login_status():
+    st.warning("🔒 Oturum süresi doldu veya çıkış yaptınız.")
+    st.switch_page("streamlit_app.py")
     st.stop()
 
 st.title("👥 Müşteri Yönetimi")

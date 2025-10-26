@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
-from auth import is_authenticated
+from auth import check_login_status
 
 st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
 
-if not is_authenticated():
-    st.warning("Bu sayfayı görüntülemek için önce giriş yapmalısınız.")
-    st.stop()
+if not check_login_status():
+    st.warning("Oturum sonlandı, lütfen tekrar giriş yapın.")
+    st.switch_page("streamlit_app.py")
 
 st.title("📊 Dashboard")
 
