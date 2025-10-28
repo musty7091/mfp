@@ -1,22 +1,20 @@
-from pydantic import BaseModel
-from typing import Optional
-from enum import Enum
+from pydantic import BaseModel, EmailStr
 
-class RoleEnum(str, Enum):
-    admin = "admin"
-    customer = "customer"
-    representative = "representative"
-    viewer = "viewer"
-
+# Temel kullanıcı şeması
 class UserBase(BaseModel):
     username: str
-    email: str
-    role: Optional[RoleEnum] = "customer"
+    email: EmailStr
+    is_active: bool = True
+    is_admin: bool = False
 
+# Kullanıcı oluşturma şeması (Şifre gerektirir)
 class UserCreate(UserBase):
     password: str
 
-class UserResponse(UserBase):
+# Kullanıcı okuma/dönüş şeması (Hassas verileri çıkarır)
+class User(UserBase):
     id: int
+
     class Config:
-        from_attributes = True
+        # SQLAlchemy ORM ile uyumluluk sağlar
+        orm_mode = True

@@ -1,91 +1,55 @@
-import os
 import requests
-from typing import Optional, Dict, Any, List
-from dotenv import load_dotenv
 
-load_dotenv()
+# FastAPI Backend adresi ve portu
+BASE_URL = "http://localhost:8000"
 
-DEFAULT_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000/api")
+def get_full_url(endpoint: str) -> str:
+    """Belirtilen API endpoint'i için tam URL oluşturur."""
+    if not endpoint.startswith("/api/v1"):
+        endpoint = f"/api/v1{endpoint}"
+    return f"{BASE_URL}{endpoint}"
 
-class APIError(Exception):
-    """Basit hata sınıfı."""
-    pass
+def api_request(method: str, endpoint: str, data: dict = None, headers: dict = None, is_form_data: bool = False):
+    """Genel API isteği işleyicisi."""
+    url = get_full_url(endpoint)
+    
+    try:
+        if method.upper() == "GET":
+            response = requests.get(url, headers=headers)
+        elif method.upper() == "POST":
+            # Login endpoint'i için Form verisi, diğerleri için JSON
+            if is_form_data:
+                # Login için Form verisi gönderimi (OAuth2PasswordRequestForm'a uyum)
+                response = requests.post(
+                    url, 
+                    data={"username": data.get("username"), "password": data.get("password")},
+                    headers=headers
+                )
+            else:
+                # Diğer POST istekleri için JSON body gönderimi
+                response = requests.post(url, json=data, headers=headers)
+        
+        elif method.upper() == "PUT":
+            response = requests.put(url, json=data, headers=headers)
+        elif method.upper() == "DELETE":
+            response = requests.delete(url, headers=headers)
+        else:
+            raise ValueError(f"Desteklenmeyen HTTP metodu: {method}")
 
+        response.raise_for_status() # HTTP hata kodlarını yakalar (4xx, 5xx)
+        return response.json() if response.content else {}
 
-class APIClient:
-    def __init__(self, base_url: Optional[str] = None) -> None:
-        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
-        self.session = requests.Session()
-        self.token: Optional[str] = None
-
-    # --- Auth ---
-    def login(self, username: str, password: str) -> str:
-        url = f"{self.base_url}/auth/login"
-    # FastAPI Form beklediği için form-data gönderiyoruz:
-        data = {"username": username, "password": password}
-        resp = self.session.post(url, data=data, timeout=30)
-        if resp.status_code >= 400:
-            raise APIError(f"Giriş başarısız: {resp.status_code} {resp.text}")
-        data = resp.json()
-        token = data.get("access_token")
-        if not token:
-            raise APIError("Token alınamadı.")
-        self.token = token
-        self.session.headers.update({"Authorization": f"Bearer {token}"})
-        return token
-
-    def set_token(self, token: str):
-        self.token = token
-        self.session.headers.update({"Authorization": f"Bearer {token}"})
-
-    # --- Customers ---
-    def get_customers(self) -> List[Dict[str, Any]]:
-        url = f"{self.base_url}/customers"
-        r = self.session.get(url, timeout=30)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    def create_customer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/customers"
-        r = self.session.post(url, json=payload, timeout=30)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    # --- Products ---
-    def get_products(self) -> List[Dict[str, Any]]:
-        url = f"{self.base_url}/products"
-        r = self.session.get(url, timeout=30)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    def create_product(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/products"
-        r = self.session.post(url, json=payload, timeout=30)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    # --- Invoices ---
-    def get_invoices(self) -> List[Dict[str, Any]]:
-        url = f"{self.base_url}/invoices"
-        r = self.session.get(url, timeout=30)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    def create_invoice(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/invoices"
-        r = self.session.post(url, json=payload, timeout=60)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.json()
-
-    def get_invoice_pdf(self, invoice_id: str) -> bytes:
-        url = f"{self.base_url}/invoices/{invoice_id}/pdf"
-        r = self.session.get(url, timeout=60)
-        if r.status_code >= 400:
-            raise APIError(r.text)
-        return r.content
+    except requests.exceptions.HTTPError as e:
+        # FastAPI'den gelen hata detaylarını yakalamaya çalış
+        try:
+            error_details = e.response.json()
+        except requests.exceptions.JSONDecodeError:
+            error_details = {"detail": e.response.text}
+            
+        return {"error": error_details.get("detail", f"API isteği başarısız oldu: {e.response.status_code}")}
+    
+    except requests.exceptions.ConnectionError:
+        return {"error": "API sunucusuna (Backend) ulaşılamıyor. Çalıştığından emin olun."}
+    
+    except Exception as e:
+        return {"error": f"Beklenmeyen bir hata oluştu: {e}"}

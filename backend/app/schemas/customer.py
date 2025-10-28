@@ -1,20 +1,29 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, EmailStr
 
-class CustomerCreate(BaseModel):
+# Temel müşteri alanları
+class CustomerBase(BaseModel):
     name: str
-    tax_number: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    default_discount: float = 0.0
+    contact_person: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    
+    tax_number: str | None = None # Vergi numarası
+    address: str | None = None
 
-class CustomerResponse(BaseModel):
-    id: int
-    name: str
-    tax_number: Optional[str] = None
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    default_discount: float
+# Yeni müşteri oluşturmak için kullanılan şema
+class CustomerCreate(CustomerBase):
+    pass
 
+# Müşteri verilerini okumak ve döndürmek için kullanılan şema
+# NOT: Projenin başka yerlerinde CustomerResponse bekleniyor, bu yüzden bu adı kullanıyoruz.
+class CustomerResponse(CustomerBase): 
+    id: int # Veritabanı ID'si
+    
     class Config:
+        # Pydantic V2'de 'orm_mode' yerine 'from_attributes' kullanılır.
+        # Altta çıkan UserWarning'ü gidermek için güncelleyelim.
         from_attributes = True
+
+# Projenizin beklediği eski ad olan "Customer"ı da 
+# yeni Response şemasına yönlendirerek geriye dönük uyumluluğu sağlıyoruz
+Customer = CustomerResponse

@@ -12,7 +12,8 @@ if css_path.exists():
 
 # --- Oturum kontrolü ---
 if check_login_status():
-    st.switch_page("pages/dashboard.py")
+    # KUSURSUZ YÖNLENDİRME: Sadece dosya adı (pages/dashboard.py -> dashboard)
+    st.switch_page("dashboard")
 
 # --- Giriş sayfası arayüzü ---
 st.markdown("<h1 style='text-align:center;'>🧾 Modern Fatura Platformu</h1>", unsafe_allow_html=True)

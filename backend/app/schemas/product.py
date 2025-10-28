@@ -1,28 +1,38 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
 from datetime import date
+from typing import Optional
 
+# Temel ürün alanları (Stok ve SKT takibi dahil)
 class ProductBase(BaseModel):
-    ad: str
-    barkod: str
-    birim_fiyat: float
-    kdv_orani: float
-    stok_miktari: int
-    skt: Optional[date] = None
+    name: str = Field(..., description="Ürünün adı veya hizmetin tanımı.")
+    unit_price: float = Field(..., gt=0, description="Ürünün birim satış fiyatı.")
+    
+    # Satılabilir ürün için kritik alanlar:
+    stock_quantity: int = Field(0, ge=0, description="Mevcut stok miktarı.")
+    sku: Optional[str] = Field(None, description="Stok Kodu (SKU).")
+    expiration_date: Optional[date] = Field(None, description="Son kullanma tarihi (SKT).")
 
+
+# Yeni ürün oluşturmak için kullanılan şema
 class ProductCreate(ProductBase):
+    # Oluşturma sırasında tüm temel alanlar gereklidir
     pass
 
+# Ürün güncellemek için kullanılan şema (tüm alanlar isteğe bağlı olabilir)
 class ProductUpdate(BaseModel):
-    ad: Optional[str]
-    barkod: Optional[str]
-    birim_fiyat: Optional[float]
-    kdv_orani: Optional[float]
-    stok_miktari: Optional[int]
-    skt: Optional[date]
+    name: Optional[str] = None
+    unit_price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    sku: Optional[str] = None
+    expiration_date: Optional[date] = None
 
-class ProductResponse(ProductBase):
-    id: int
-
+# Ürün verilerini okumak ve döndürmek için kullanılan şema
+class Product(ProductBase):
+    id: int # Veritabanı ID'si
+    
     class Config:
+        # Pydantic V2 uyumluluğu için 'from_attributes' kullanıyoruz
         from_attributes = True
+
+# Projenin eski adlandırma beklentisine uyum için (ImportError'ı önler)
+ProductResponse = Product

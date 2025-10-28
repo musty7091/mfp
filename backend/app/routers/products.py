@@ -1,67 +1,49 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
-from datetime import date, timedelta
+from datetime import date
 from app.database import get_db
-from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.schemas.product import Product, ProductCreate, ProductUpdate
+from app.core.security import get_current_user, rep_required
 
-router = APIRouter(prefix="/products", tags=["Ürünler"])
+router = APIRouter(prefix="/products", tags=["Products"])
 
-# --- Ürün listeleme ---
-@router.get("/", response_model=List[ProductResponse])
-def list_products(db: Session = Depends(get_db)):
-    return db.query(Product).order_by(Product.id.desc()).all()
+# Simülasyon: Ürün verilerini stok ve SKT bilgileriyle tutuyoruz.
+DUMMY_PRODUCTS = [
+    Product(id=1, name="Yazılım Geliştirme Hizmeti", unit_price=500.0, stock_quantity=9999, sku="HIZ-SW", expiration_date=None, barcode="0001", vat_rate=20.0),
+    Product(id=2, name="A4 Ofis Kağıdı (Koli)", unit_price=120.0, stock_quantity=45, sku="STK-001", expiration_date=date(2026, 12, 31), barcode="0002", vat_rate=20.0),
+    Product(id=3, name="Özel Tasarım Lisansı", unit_price=1500.0, stock_quantity=1, sku="HIZ-LIS", expiration_date=None, barcode="0003", vat_rate=20.0),
+]
+product_id_counter = 4
 
-# --- Ürün detay ---
-@router.get("/{product_id}", response_model=ProductResponse)
-def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
-    return product
+@router.get("/", response_model=list[Product])
+def read_products(
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    """Tüm ürünleri stok ve SKT bilgileriyle listeler (Yetkili kullanıcı gerektirir)."""
+    # Gerçek uygulamada DB sorgusu burada olur.
+    return DUMMY_PRODUCTS
 
-# --- Ürün ekleme ---
-@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    existing = db.query(Product).filter(Product.barkod == product.barkod).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Bu barkoda sahip ürün zaten mevcut.")
+@router.post("/", response_model=Product, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(rep_required)])
+def create_product(
+    product: ProductCreate, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    """Yeni ürün/stok kaydı oluşturur (Temsilci/Admin yetkisi gerektirir)."""
+    global product_id_counter
+    
+    # Yeni ürün verisini simülasyon listesine ekle
+    new_product_dict = product.dict()
+    new_product_dict["id"] = product_id_counter
+    
+    # Varsayılan KDV ve barkodu ekliyoruz (Model ile uyumlu olması için)
+    new_product_dict["barcode"] = f"AUTO-{product_id_counter}" 
+    new_product_dict["vat_rate"] = new_product_dict.get("vat_rate", 20.0) 
 
-    db_product = Product(**product.model_dump())
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-# --- Ürün güncelleme ---
-@router.put("/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, updated: ProductUpdate, db: Session = Depends(get_db)):
-    db_product = db.query(Product).filter(Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
-
-    for key, value in updated.model_dump(exclude_unset=True).items():
-        setattr(db_product, key, value)
-
-    db.commit()
-    db.refresh(db_product)
-    return db_product
-
-# --- Ürün silme ---
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: int, db: Session = Depends(get_db)):
-    db_product = db.query(Product).filter(Product.id == product_id).first()
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
-    db.delete(db_product)
-    db.commit()
-    return {"detail": "Ürün silindi."}
-
-# --- SKT yaklaşan ürünler ---
-@router.get("/expiry/soon", response_model=List[ProductResponse])
-def products_expiring_soon(days: int = 30, db: Session = Depends(get_db)):
-    today = date.today()
-    limit_date = today + timedelta(days=days)
-    products = db.query(Product).filter(Product.skt != None, Product.skt <= limit_date).all()
-    return products
+    new_product = Product(**new_product_dict)
+    DUMMY_PRODUCTS.append(new_product)
+    product_id_counter += 1
+    
+    return new_product

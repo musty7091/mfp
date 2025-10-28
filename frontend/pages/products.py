@@ -1,94 +1,106 @@
 import streamlit as st
-import requests
+import pandas as pd
 from datetime import date
+from auth import check_login_status
+from api_client import api_request
+from session_token import get_auth_headers
 
-BACKEND_URL = "http://localhost:8000"
+# Sayfa Ayarları
+st.set_page_config(page_title="Ürünler ve Stok", page_icon="📦", layout="wide")
 
-st.set_page_config(page_title="Ürün Yönetimi", page_icon="📦", layout="wide")
+# --- Oturum Kontrolü ---
+if not check_login_status():
+    st.warning("Erişim reddedildi. Lütfen tekrar giriş yapın.")
+    # Kritik Düzeltme: Ana sayfaya uzantısız yönlendirme
+    st.switch_page("streamlit_app")
 
-st.title("📦 Ürün Yönetimi")
-st.markdown("Kayıtlı ürünlerinizi yönetin veya yeni ürün ekleyin.")
+st.title("📦 Ürün ve Stok Yönetimi")
+st.markdown("İşletmenizin ürün/hizmet, stok ve SKT (Son Kullanma Tarihi) bilgilerini yönetin.")
 
-# --- Oturum kontrolü ---
-if "token" not in st.session_state:
-    st.error("Bu sayfayı görmek için giriş yapmalısınız.")
-    st.stop()
-
-# --- Yardımcı fonksiyonlar ---
-def get_products():
-    res = requests.get(f"{BACKEND_URL}/products/")
-    if res.status_code == 200:
-        return res.json()
-    else:
-        st.error("Ürünler yüklenemedi.")
-        return []
-
-def add_product(data):
-    res = requests.post(f"{BACKEND_URL}/products/", json=data)
-    if res.status_code == 201:
-        st.success("✅ Ürün başarıyla eklendi.")
-        st.rerun()
-    else:
-        st.error(f"❌ Ürün eklenemedi: {res.text}")
-
-# --- Ana sayfa görünümü ---
-products = get_products()
-
-if "show_form" not in st.session_state:
-    st.session_state.show_form = False
-
-col1, col2 = st.columns([0.8, 0.2])
-with col1:
-    st.subheader("📋 Kayıtlı Ürünler")
-with col2:
-    if st.button("➕ Ürün Ekle", use_container_width=True):
-        st.session_state.show_form = not st.session_state.show_form
-
-# --- Ürün tablosu ---
-if products:
-    st.dataframe(
-        [
-            {
-                "Barkod": p["barkod"],
-                "Ürün Adı": p["ad"],
-                "Stok": p["stok_miktari"],
-                "SKT": p["skt"] or "-",
-            }
-            for p in products
-        ],
-        use_container_width=True,
-        hide_index=True,
+# --- API İsteği Fonksiyonu ---
+@st.cache_data(ttl=60) # Ürün listesini 1 dakika önbellekte tut
+def fetch_products():
+    """Backend'den tüm ürün verilerini çeker (Stok ve SKT dahil)."""
+    headers = get_auth_headers()
+    
+    response = api_request(
+        method="GET",
+        endpoint="/products",
+        headers=headers
     )
+    
+    if response and "error" not in response:
+        return response
+    
+    st.error(f"Ürün verileri çekilemedi: {response.get('error', 'Bilinmeyen Hata')}")
+    return []
+
+# --- Ürün Listesini Göster ---
+product_data = fetch_products()
+
+if product_data:
+    df = pd.DataFrame(product_data)
+    
+    # Tarih formatını düzenleme (SKT için)
+    df['expiration_date'] = pd.to_datetime(df['expiration_date']).dt.strftime('%Y-%m-%d').replace('NaT', '-')
+    
+    # Sütunları Türkçeleştirme
+    df = df.rename(columns={
+        "name": "Ürün Adı",
+        "unit_price": "Birim Fiyat (₺)",
+        "stock_quantity": "Stok Miktarı",
+        "sku": "SKU (Stok Kodu)",
+        "expiration_date": "Son Kullanma Tarihi (SKT)"
+    })
+    
+    # Fiyat ve Stok formatlaması
+    df["Birim Fiyat (₺)"] = df["Birim Fiyat (₺)"].apply(lambda x: f"₺{x:,.2f}")
+    
+    display_columns = ["Ürün Adı", "SKU (Stok Kodu)", "Birim Fiyat (₺)", "Stok Miktarı", "Son Kullanma Tarihi (SKT)"]
+    
+    st.dataframe(df[display_columns], use_container_width=True, hide_index=True)
 else:
-    st.info("Kayıtlı ürün bulunamadı.")
+    st.info("Kayıtlı ürün bulunmamaktadır.")
 
-# --- Ürün ekleme formu ---
-if st.session_state.show_form:
-    st.markdown("---")
-    st.subheader("🆕 Yeni Ürün Ekle")
+st.divider()
 
-    with st.form("product_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            ad = st.text_input("Ürün Adı", placeholder="ör. Jack Daniels 70cl")
-            barkod = st.text_input("Barkod", placeholder="ör. 8691234567890")
-            fiyat = st.number_input("Fiyat (₺)", min_value=0.0, step=0.5)
-        with col2:
-            kdv = st.number_input("KDV", min_value=0.0, max_value=1.0, step=0.01, value=0.2)
-            stok = st.number_input("Stok", min_value=0, step=1, value=0)
-            skt = st.date_input("SKT", value=None, min_value=date.today())
-
-        submitted = st.form_submit_button("💾 Kaydet", use_container_width=True)
+# --- Yeni Ürün Ekleme Formu (Stok/SKT Dahil) ---
+with st.expander("📦 Yeni Ürün/Stok Ekle", expanded=False):
+    with st.form("new_product_form"):
+        col_form_1, col_form_2 = st.columns(2)
+        with col_form_1:
+            new_name = st.text_input("Ürün Adı *")
+            new_price = st.number_input("Birim Fiyatı (₺) *", min_value=0.01, format="%.2f")
+            new_sku = st.text_input("SKU (Stok Kodu)")
+        with col_form_2:
+            new_stock = st.number_input("Stok Miktarı", min_value=0, step=1)
+            new_expiry_date = st.date_input("Son Kullanma Tarihi (SKT)", value=None, min_value=date.today())
+            
+        submitted = st.form_submit_button("Ürünü Kaydet")
+        
         if submitted:
-            if not ad or not barkod:
-                st.warning("Lütfen tüm zorunlu alanları doldurun.")
+            if not new_name or not new_price:
+                st.error("Lütfen Ürün Adını ve Birim Fiyatını girin.")
             else:
-                data = {
-                    "ad": ad,
-                    "barkod": barkod,
-                    "birim_fiyat": fiyat,
-                    "kdv_orani": kdv,
-                    "stok_miktari": stok,
-                    "skt": str(skt) if skt else None,
+                product_data = {
+                    "name": new_name,
+                    "unit_price": new_price,
+                    "stock_quantity": new_stock,
+                    "sku": new_sku,
+                    "expiration_date": new_expiry_date.isoformat() if new_expiry_date else None
                 }
-                add_product(data)
+                
+                headers = get_auth_headers()
+                response = api_request(
+                    method="POST",
+                    endpoint="/products",
+                    data=product_data,
+                    headers=headers
+                )
+                
+                if "error" not in response:
+                    st.success(f"'{new_name}' başarıyla kaydedildi (ID: {response.get('id')})!")
+                    st.cache_data.clear()
+                    st.rerun() 
+                else:
+                    st.error(f"Kaydetme hatası: {response.get('error', 'Bilinmeyen API Hatası')}")
